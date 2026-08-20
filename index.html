@@ -129,14 +129,6 @@
 <script>
 (function(){
 
-  /* =========================================================
-     KÉPCSERE ITT TÖRTÉNIK
-     Írd át a három elérési utat a saját képeidre
-     (pl. 'assets/szereplo.png' egy a HTML mellé mentett fájlra,
-     vagy egy teljes https:// kezdetű URL-re).
-     Ha nem cseréled le, egy alapértelmezett csillámos grafika jelenik meg.
-     Ajánlott képméret: kb. 200x200 px, átlátszó (PNG) háttérrel.
-  ========================================================= */
   const CHARACTER_IMG_SRC = 'assets/bogi_200x200.png';   // a futó szereplő képe
   const OBSTACLE_IMG_SRC  = 'assets/kaktusz_200x200.png';    // az akadály képe
   const COIN_IMG_SRC      = 'assets/mikrofon_200x200.png';  // az ugrás közben gyűjthető tárgy képe
@@ -144,11 +136,8 @@
 
  /* =========================================================
      LÁTOGATÓSZÁMLÁLÓ (Cloudflare Worker)
-     Ez a saját Workered URL-je — minden oldalbetöltéskor
-     meghívja, és a visszakapott számot kiírja a HUD-ra.
   ========================================================= */
   const VISIT_COUNTER_URL = 'https://dawn-mouse-aff8.kisbatta92.workers.dev';
-  /* ========================================================= */
 
   fetch(VISIT_COUNTER_URL)
     .then(r => r.json())
@@ -161,7 +150,7 @@
       if(el) el.textContent = '–';
     });
   
-  // --- alapértelmezett csillámos grafikák, ha a fenti fájlok nem léteznek ---
+  // --- alapértelmezett grafikák, ha a fenti fájlok nem léteznek ---
   const FALLBACK_CHARACTER = svgDataUri(`
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
       <ellipse cx="100" cy="150" rx="46" ry="18" fill="#c94f9c" opacity="0.25"/>
