@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Csillámfutás</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sky-top:#ffd9ec;
+    --sky-mid:#f3c6f5;
+    --sky-bottom:#c9aaf5;
+    --ground:#ff9ecf;
+    --ground-dark:#f277b3;
+    --panel:#3a1240;
+    --panel-line:#6b2f6f;
+    --accent:#ff4fa8;
+    --accent-2:#ffd23f;
+    --text:#fff0f8;
+    --text-dim:#e2b8de;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0;height:100%;
+    background:var(--panel);
+    font-family:'Quicksand',ui-rounded,sans-serif;
+    color:var(--text);
+    overflow:hidden;
+    touch-action:manipulation;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #stage{
+    position:relative;
+    width:100vw;height:100vh;
+    max-width:520px;
+    max-height:920px;
+    margin:auto;
+    background:var(--panel);
+    display:flex;flex-direction:column;
+    overflow:hidden;
+  }
+  header{
+    padding:12px 16px 6px;
+    display:flex;align-items:center;justify-content:space-between;
+    gap:8px;
+    z-index:5;
+  }
+  h1{
+    font-family:'Baloo 2',sans-serif;
+    font-size:21px;margin:0;letter-spacing:.3px;
+    color:var(--accent-2);
+    text-shadow:0 2px 0 #7a4d00;
+  }
+  #hud{
+    display:flex;gap:14px;font-size:14px;color:var(--text-dim);font-weight:600;
+  }
+  #hud b{color:var(--accent);font-size:17px;font-family:'Baloo 2',sans-serif;}
+  #canvasWrap{
+    position:relative;
+    flex:1;
+    margin:0 10px 10px;
+    border-radius:22px;
+    overflow:hidden;
+    border:3px solid var(--panel-line);
+    box-shadow:0 0 0 3px rgba(255,79,168,.25) inset;
+    background:linear-gradient(var(--sky-top), var(--sky-mid) 55%, var(--sky-bottom));
+  }
+  canvas{ display:block;width:100%;height:100%; }
+  #tapHint{
+    position:absolute;left:0;right:0;bottom:14%;
+    text-align:center;font-weight:700;
+    font-size:15px;color:#5a1b4d;
+    text-shadow:0 1px 3px rgba(255,255,255,.5);
+    pointer-events:none;
+    animation:pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:.55;transform:translateY(0)}50%{opacity:1;transform:translateY(-4px)}}
+
+  #overlay{
+    position:absolute;inset:0;
+    background:rgba(58,18,64,.9);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:12px;padding:24px;text-align:center;
+    z-index:10;
+  }
+  #overlay.hidden{display:none;}
+  #overlay h2{font-family:'Baloo 2',sans-serif;margin:0;font-size:26px;color:var(--accent-2);}
+  #overlay p{margin:0;color:var(--text-dim);font-size:14px;max-width:280px;}
+  #startBtn{
+    margin-top:10px;
+    padding:13px 38px;
+    font-family:'Baloo 2',sans-serif;
+    font-size:18px;font-weight:700;
+    border:none;border-radius:30px;
+    background:var(--accent);
+    color:#fff0f8;
+    cursor:pointer;
+    box-shadow:0 4px 0 #a51a70;
+  }
+  #startBtn:active{transform:translateY(3px);box-shadow:none;}
+  #finalScore{font-size:15px;color:var(--text);}
+  #finalScore b{color:var(--accent-2);font-family:'Baloo 2',sans-serif;font-size:21px;}
+</style>
+</head>
+<body>
+<div id="stage">
+  <header>
+    <h1>✨ Csillámfutás</h1>
+    <div id="hud">
+      <div>Pont: <b id="scoreVal">0</b></div>
+      <div>💗 <b id="coinVal">0</b></div>
+    </div>
+  </header>
+
+  <div id="canvasWrap">
+    <canvas id="game"></canvas>
+    <div id="tapHint">Koppints az ugráshoz</div>
+
+    <div id="overlay">
+      <h2 id="overlayTitle">Csillámfutás</h2>
+      <p id="overlaySub">Ugorj az akadályok fölött, gyűjtsd a csillogó jutalmakat!</p>
+      <div id="finalScore" style="display:none;"></div>
+      <button id="startBtn">Indítás</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+
+  /* =========================================================
+     KÉPCSERE ITT TÖRTÉNIK
+     Írd át a három elérési utat a saját képeidre
+     (pl. 'assets/szereplo.png' egy a HTML mellé mentett fájlra,
+     vagy egy teljes https:// kezdetű URL-re).
+     Ha nem cseréled le, egy alapértelmezett csillámos grafika jelenik meg.
+     Ajánlott képméret: kb. 200x200 px, átlátszó (PNG) háttérrel.
+  ========================================================= */
+  const CHARACTER_IMG_SRC = 'assets/bogi_200x200.png';   // a futó szereplő képe
+  const OBSTACLE_IMG_SRC  = 'assets/kaktusz_200x200.png';    // az akadály képe
+  const COIN_IMG_SRC      = 'assets/mikrofon_200x200.png';  // az ugrás közben gyűjthető tárgy képe
+  /* ========================================================= */
+
+  // --- alapértelmezett csillámos grafikák, ha a fenti fájlok nem léteznek ---
+  const FALLBACK_CHARACTER = svgDataUri(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+      <ellipse cx="100" cy="150" rx="46" ry="18" fill="#c94f9c" opacity="0.25"/>
+      <circle cx="100" cy="95" r="60" fill="#ff8fcf"/>
+      <circle cx="100" cy="95" r="60" fill="none" stroke="#ff4fa8" stroke-width="6"/>
+      <path d="M55 65 Q100 20 145 65 Q120 55 100 60 Q80 55 55 65 Z" fill="#ff4fa8"/>
+      <circle cx="78" cy="92" r="7" fill="#3a1240"/>
+      <circle cx="122" cy="92" r="7" fill="#3a1240"/>
+      <path d="M80 118 Q100 132 120 118" stroke="#3a1240" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <circle cx="60" cy="108" r="9" fill="#ff9ecf" opacity="0.8"/>
+      <circle cx="140" cy="108" r="9" fill="#ff9ecf" opacity="0.8"/>
+    </svg>`);
+  const FALLBACK_OBSTACLE = svgDataUri(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+      <polygon points="100,20 130,90 190,100 130,110 100,180 70,110 10,100 70,90"
+        fill="#b64fe0" stroke="#7a1bb3" stroke-width="6" stroke-linejoin="round"/>
+      <circle cx="100" cy="100" r="16" fill="#ffd23f"/>
+    </svg>`);
+  const FALLBACK_COIN = svgDataUri(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+      <path d="M100 30 C40 30 40 100 100 130 C160 100 160 30 100 30 Z" fill="#ff4fa8" stroke="#a51a70" stroke-width="6"/>
+      <path d="M100 30 C40 30 40 100 100 130 C160 100 160 30 100 30 Z" transform="translate(0,25)" fill="#ff4fa8" stroke="#a51a70" stroke-width="6"/>
+      <circle cx="70" cy="60" r="8" fill="#ffffff" opacity="0.7"/>
+    </svg>`);
+
+  function svgDataUri(svg){
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg.trim());
+  }
+
+  function loadImage(src, fallback){
+    const img = new Image();
+    img.ready = false;
+    img.src = src;
+    img.onload = ()=>{ img.ready = true; };
+    img.onerror = ()=>{
+      img.src = fallback;
+      img.onload = ()=>{ img.ready = true; };
+    };
+    return img;
+  }
+
+  const charImg = loadImage(CHARACTER_IMG_SRC, FALLBACK_CHARACTER);
+  const obsImg  = loadImage(OBSTACLE_IMG_SRC, FALLBACK_OBSTACLE);
+  const coinImg = loadImage(COIN_IMG_SRC, FALLBACK_COIN);
+
+  // ---- Canvas setup ----
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const wrap = document.getElementById('canvasWrap');
+  let W,H,DPR;
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio||1, 2);
+    W = wrap.clientWidth;
+    H = wrap.clientHeight;
+    canvas.width = W*DPR;
+    canvas.height = H*DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+
+  const scoreEl = document.getElementById('scoreVal');
+  const coinEl = document.getElementById('coinVal');
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlayTitle');
+  const overlaySub = document.getElementById('overlaySub');
+  const finalScoreEl = document.getElementById('finalScore');
+  const startBtn = document.getElementById('startBtn');
+  const tapHint = document.getElementById('tapHint');
+
+  let running = false;
+  let groundY, player, obstacles, coins, speed, gravity, jumpVel, score, coinCount, spawnTimer, coinSpawnTimer, frame;
+  let sparkles = [];
+
+  function initState(){
+    resize();
+    groundY = H*0.78;
+    player = {
+      x: W*0.18,
+      y: groundY,
+      w: Math.min(85, W*0.16),
+      h: Math.min(85, W*0.16),
+      vy: 0,
+      onGround: true,
+      squash: 0
+    };
+    obstacles = [];
+    coins = [];
+    speed = W*0.32;
+    gravity = H*2.1;
+    jumpVel = -H*1.00;
+    score = 0;
+    coinCount = 0;
+    spawnTimer = 0;
+    coinSpawnTimer = 0;
+    frame = 0;
+    sparkles = [];
+    for(let i=0;i<22;i++){
+      sparkles.push({x:Math.random()*W, y:Math.random()*H*0.6, r:1+Math.random()*2});
+    }
+    scoreEl.textContent = '0';
+    coinEl.textContent = '0';
+  }
+
+  function jump(){
+    if(!running) return;
+    if(player.onGround){
+      player.vy = jumpVel;
+      player.onGround = false;
+    }
+  }
+
+  function spawnObstacle(){
+    const size = Math.min(54, W*0.14) * (0.85 + Math.random()*0.4);
+    obstacles.push({x:W+size, y:groundY, w:size, h:size});
+  }
+  function spawnCoin(){
+    const size = Math.min(38, W*0.1);
+    const hoverHeight = H*(0.18 + Math.random()*0.14);
+    coins.push({x:W+size, y:groundY - hoverHeight, w:size, h:size, taken:false});
+  }
+
+  function rectHit(ax,ay,aw,ah,bx,by,bw,bh){
+    const pad = 0.22;
+    return ax - aw*(0.5-pad) < bx + bw*(0.5-pad) &&
+           ax + aw*(0.5-pad) > bx - bw*(0.5-pad) &&
+           ay - ah*(0.5-pad) < by + bh*(0.5-pad) &&
+           ay + ah*(0.5-pad) > by - bh*(0.5-pad);
+  }
+
+  let lastTime;
+  function loop(t){
+    if(!running) return;
+    if(!lastTime) lastTime = t;
+    let dt = (t-lastTime)/1000;
+    dt = Math.min(dt, 0.033);
+    lastTime = t;
+    frame++;
+
+    speed += dt*6;
+
+    player.vy += gravity*dt;
+    player.y += player.vy*dt;
+    if(player.y >= groundY){
+      player.y = groundY;
+      if(!player.onGround){ player.squash = 1; }
+      player.vy = 0;
+      player.onGround = true;
+    }
+    if(player.squash>0) player.squash -= dt*4;
+
+    spawnTimer -= dt;
+    if(spawnTimer<=0){
+      spawnObstacle();
+      spawnTimer = Math.max(0.55, 1.0 + Math.random()*0.9 - speed/2000);
+    }
+    coinSpawnTimer -= dt;
+    if(coinSpawnTimer<=0){
+      spawnCoin();
+      coinSpawnTimer = 1.1 + Math.random()*1.3;
+    }
+
+    for(const o of obstacles){ o.x -= speed*dt; }
+    obstacles = obstacles.filter(o=>o.x > -o.w);
+    for(const c of coins){ c.x -= speed*dt; }
+    coins = coins.filter(c=>c.x > -c.w && !c.taken);
+
+    for(const o of obstacles){
+      if(rectHit(player.x, player.y - player.h/2, player.w, player.h, o.x, o.y - o.h/2, o.w, o.h)){
+        return gameOver();
+      }
+    }
+    for(const c of coins){
+      if(!c.taken && rectHit(player.x, player.y - player.h/2, player.w, player.h, c.x, c.y - c.h/2, c.w, c.h)){
+        c.taken = true;
+        coinCount++;
+        coinEl.textContent = coinCount;
+      }
+    }
+
+    score += dt*10;
+    scoreEl.textContent = Math.floor(score);
+
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function drawBackground(){
+    for(const s of sparkles){
+      s.x -= speed*0.15*0.016;
+      if(s.x < -4){ s.x = W+4; s.y = Math.random()*H*0.6; }
+      ctx.globalAlpha = 0.5 + 0.5*Math.sin(frame*0.05 + s.x);
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = '#e79be0';
+    duneShape(H*0.62, 22, 0.5);
+    ctx.fillStyle = '#f0a9d8';
+    duneShape(H*0.7, 30, 0.85);
+
+    ctx.fillStyle = getCss('--ground');
+    ctx.fillRect(0, groundY, W, H-groundY);
+    ctx.fillStyle = getCss('--ground-dark');
+    ctx.fillRect(0, groundY, W, 6);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    const dashW = 22, gap = 18;
+    const offset = (frame*3) % (dashW+gap);
+    for(let x = -offset; x < W; x += dashW+gap){
+      ctx.beginPath();
+      ctx.arc(x+dashW/2, groundY+18, 3, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+  function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function duneShape(baseY, amp, speedFactor){
+    ctx.beginPath();
+    ctx.moveTo(0,H);
+    const shift = (frame*speedFactor*0.4)%200;
+    for(let x=0; x<=W; x+=20){
+      const y = baseY + Math.sin((x+shift)*0.02)*amp;
+      ctx.lineTo(x,y);
+    }
+    ctx.lineTo(W,H);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawSprite(img, x, y, w, h){
+    if(img.ready){
+      ctx.drawImage(img, x-w/2, y-h/2, w, h);
+    }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    drawBackground();
+
+    for(const c of coins){
+      const bob = Math.sin(frame*0.15 + c.x*0.05)*4;
+      drawSprite(coinImg, c.x, c.y+bob, c.w, c.h);
+    }
+
+    for(const o of obstacles){
+      drawSprite(obsImg, o.x, o.y - o.h/2, o.w, o.h);
+    }
+
+    ctx.save();
+    const squashY = 1 - (player.squash>0?player.squash*0.18:0);
+    const squashX = 1 + (player.squash>0?player.squash*0.18:0);
+    ctx.translate(player.x, player.y - player.h/2);
+    ctx.scale(squashX, squashY);
+    drawSprite(charImg, 0, 0, player.w, player.h);
+    ctx.restore();
+  }
+
+  function gameOver(){
+    running = false;
+    overlayTitle.textContent = 'Vége a játéknak!';
+    overlaySub.textContent = 'Próbáld meg túlszárnyalni az előző eredményed!';
+    finalScoreEl.style.display = 'block';
+    finalScoreEl.innerHTML = `Elért pont: <b>${Math.floor(score)}</b> &nbsp;•&nbsp; Gyűjtött: <b>${coinCount}</b>`;
+    startBtn.textContent = 'Újra';
+    overlay.classList.remove('hidden');
+    tapHint.style.display = 'none';
+  }
+
+  function startGame(){
+    initState();
+    running = true;
+    lastTime = null;
+    overlay.classList.add('hidden');
+    tapHint.style.display = 'block';
+    requestAnimationFrame(loop);
+  }
+
+  startBtn.addEventListener('click', startGame);
+
+  wrap.addEventListener('pointerdown', (e)=>{
+    e.preventDefault();
+    if(running) jump();
+  });
+  window.addEventListener('keydown', (e)=>{
+    if(e.code==='Space'||e.code==='ArrowUp'){
+      e.preventDefault();
+      if(running) jump();
+      else if(!overlay.classList.contains('hidden')) startGame();
+    }
+  });
+
+  resize();
+  initState();
+  draw();
+})();
+</script>
+</body>
+</html>
