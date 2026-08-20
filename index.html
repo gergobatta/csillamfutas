@@ -142,6 +142,25 @@
   const COIN_IMG_SRC      = 'assets/mikrofon_200x200.png';  // az ugrás közben gyűjthető tárgy képe
   /* ========================================================= */
 
+ /* =========================================================
+     LÁTOGATÓSZÁMLÁLÓ (Cloudflare Worker)
+     Ez a saját Workered URL-je — minden oldalbetöltéskor
+     meghívja, és a visszakapott számot kiírja a HUD-ra.
+  ========================================================= */
+  const VISIT_COUNTER_URL = 'https://dawn-mouse-aff8.kisbatta92.workers.dev';
+  /* ========================================================= */
+
+  fetch(VISIT_COUNTER_URL)
+    .then(r => r.json())
+    .then(data => {
+      const el = document.getElementById('visitVal');
+      if(el) el.textContent = data.count;
+    })
+    .catch(() => {
+      const el = document.getElementById('visitVal');
+      if(el) el.textContent = '–';
+    });
+  
   // --- alapértelmezett csillámos grafikák, ha a fenti fájlok nem léteznek ---
   const FALLBACK_CHARACTER = svgDataUri(`
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
